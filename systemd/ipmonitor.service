@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Public IP Monitor
+Documentation=https://github.com/qualvey/ip-monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ipmonitor.sh
+StandardOutput=journal
+StandardError=journal
