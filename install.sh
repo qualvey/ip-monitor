@@ -95,14 +95,21 @@ download_or_copy() {
 info "安装核心执行脚本到 ${BIN_PATH}..."
 download_or_copy "ipmonitor.sh" "$BIN_PATH"
 chmod +x "$BIN_PATH"
+# 将脚本所有者赋予目标用户，以便普通用户身份每天定时运行时具备自更新写权限
+chown "${TARGET_USER}:" "$BIN_PATH" 2>/dev/null || true
 ln -sf "$BIN_PATH" "$ALIAS_PATH"
 
-# 6. 生成全局配置文件，记录目标日志路径
+# 6. 生成全局配置文件，记录目标日志路径与自动更新设置
 cat << EOF > "$GLOBAL_CONF"
 # IP Monitor Global Configuration
 LOG_FILE="${LOG_FILE}"
+AUTO_UPDATE="true"
+REPO_OWNER="${REPO_OWNER}"
+REPO_NAME="${REPO_NAME}"
+BRANCH="${BRANCH}"
 EOF
 chmod 644 "$GLOBAL_CONF"
+chown "${TARGET_USER}:" "$GLOBAL_CONF" 2>/dev/null || true
 
 # 7. 配置定时任务（优先使用 systemd timer，非 systemd 环境回退到 cron）
 HAS_SYSTEMD=false
@@ -181,6 +188,8 @@ echo ""
 echo -e "常用指令:"
 echo -e "  查看历史日志:  ${YELLOW}cat ${LOG_FILE}${NC}  或  ${YELLOW}tail -f ${LOG_FILE}${NC}"
 echo -e "  手动立即执行:  ${YELLOW}ipmonitor${NC}"
+echo -e "  手动更新版本:  ${YELLOW}ipmonitor -u${NC}"
+echo -e "  查看当前版本:  ${YELLOW}ipmonitor -v${NC}"
 if [ "$HAS_SYSTEMD" = true ]; then
 echo -e "  查看执行日志:  ${YELLOW}journalctl -u ipmonitor.service -n 20${NC}"
 fi
