@@ -1,2 +1,2 @@
 # Daily Public IP Monitor (run once every day at 00:00)
-0 0 * * * root /usr/local/bin/ipmonitor.sh >/dev/null 2>&1
+0 0 * * * __TARGET_USER__ LOG_FILE="__LOG_FILE__" __BIN_PATH__ >/dev/null 2>&1

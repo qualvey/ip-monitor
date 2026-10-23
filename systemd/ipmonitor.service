@@ -6,6 +6,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/ipmonitor.sh
+User=__TARGET_USER__
+Environment="LOG_FILE=__LOG_FILE__"
+ExecStart=__BIN_PATH__
 StandardOutput=journal
 StandardError=journal
