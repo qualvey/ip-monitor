@@ -4,8 +4,17 @@
 # IP Monitor - VPS 出口 IPv4 记录脚本
 # ==============================================================================
 
-# 配置日志输出路径（支持环境变量覆盖，默认 /root/ip_history.txt）
-LOG_FILE="${LOG_FILE:-/root/ip_history.txt}"
+# 优先读取全局或用户配置文件（如果存在）
+if [ -f "/etc/ipmonitor.conf" ]; then
+    # shellcheck source=/dev/null
+    source "/etc/ipmonitor.conf"
+elif [ -n "$HOME" ] && [ -f "${HOME}/.config/ipmonitor/config" ]; then
+    # shellcheck source=/dev/null
+    source "${HOME}/.config/ipmonitor/config"
+fi
+
+# 配置日志输出路径（支持环境变量覆盖，默认当前用户家目录下的 ip_history.txt）
+LOG_FILE="${LOG_FILE:-${HOME:-/root}/ip_history.txt}"
 
 # 确保日志所在目录存在
 LOG_DIR="$(dirname "$LOG_FILE")"
