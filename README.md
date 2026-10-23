@@ -10,6 +10,7 @@
 ## ✨ 特性
 
 - 🚀 **一键极速部署**：单行命令自动化安装，自动安装 `curl` 依赖与配置定时任务。
+- 👤 **智能用户适配**：自动识别实际执行安装的用户（包括 `sudo` 调用的原用户），日志默认写入**当前用户的家目录**（如 `~/ip_history.txt`），服务以此用户身份运行，文件权限天然归属该用户，普通用户查看修改免 `sudo`。
 - 🛡️ **多源冗余容灾**：依次通过 `ip.sb`、`ipify.org`、`icanhazip.com`、`ifconfig.me` 探测出口 IP，严格校验 IPv4 合法性，防止因单点网络抖动导致漏记。
 - ⏰ **双定时机制兼容**：
   - **优先使用 Systemd Timer**：支持错峰随机延时（RandomizedDelaySec）与漏跑自动补测（Persistent=true）；
@@ -21,7 +22,7 @@
 
 ## ⚡ 快速开始（一键安装）
 
-在你的新 VPS 上（支持 Debian / Ubuntu / CentOS / AlmaLinux / RockyLinux / Alpine / Arch 等），直接以 `root` 或 `sudo` 运行：
+在你的新 VPS 上（支持 Debian / Ubuntu / CentOS / AlmaLinux / RockyLinux / Alpine / Arch 等），直接以当前用户或 `sudo` 运行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/qualvey/ip-monitor/main/install.sh | sudo bash
@@ -32,17 +33,20 @@ curl -fsSL https://raw.githubusercontent.com/qualvey/ip-monitor/main/install.sh 
 > wget -qO- https://raw.githubusercontent.com/qualvey/ip-monitor/main/install.sh | sudo bash
 > ```
 
-安装完成后，程序会自动执行一次测试并将当前出口 IP 记录至 `/root/ip_history.txt`。
+安装脚本会自动识别你的当前登录用户（即使通过 `sudo` 执行，也会识别为原始操作用户），并将日志保存至当前用户的家目录：`~/ip_history.txt`（若为 root 登录则保存在 `/root/ip_history.txt`）。
+
+安装完成后，程序会自动执行一次测试并打印当前最新的出口 IP。
 
 ---
 
 ## 📖 常用管理命令
 
 ### 1. 查看历史 IP 记录
+无需 `sudo`，普通用户直接读取当前家目录下的日志文件：
 ```bash
-cat /root/ip_history.txt
+cat ~/ip_history.txt
 # 或者持续追踪新记录
-tail -f /root/ip_history.txt
+tail -f ~/ip_history.txt
 ```
 
 **日志记录示例：**
@@ -74,7 +78,7 @@ journalctl -u ipmonitor.service -n 20 --no-pager
 对于使用 Cron 的系统：
 ```bash
 cat /etc/cron.d/ipmonitor
-# 或
+# 或查看用户的定时任务
 crontab -l
 ```
 
@@ -83,13 +87,12 @@ crontab -l
 ## ⚙️ 进阶配置
 
 ### 修改日志路径
-默认日志保存在 `/root/ip_history.txt`。如需自定义，可修改 `/etc/systemd/system/ipmonitor.service` 中的 `Environment`：
-```ini
-[Service]
-Environment="LOG_FILE=/var/log/my_ip.log"
-ExecStart=/usr/local/bin/ipmonitor.sh
+默认日志保存在当前安装用户的 `~/ip_history.txt`。如需全局自定义保存路径：
+编辑全局配置文件 `/etc/ipmonitor.conf`：
+```bash
+LOG_FILE="/var/log/my_ip.log"
 ```
-修改后执行 `systemctl daemon-reload` 即可。
+或者修改 `/etc/systemd/system/ipmonitor.service` 中的 `Environment="LOG_FILE=..."` 并执行 `systemctl daemon-reload`。
 
 ### 修改每日执行时间 / 执行频率
 默认在每日 `00:00:00` 运行。如需更改为每 6 小时记录一次，编辑 `/etc/systemd/system/ipmonitor.timer`：
@@ -110,7 +113,7 @@ OnCalendar=*-*-* 00/6:00:00
 curl -fsSL https://raw.githubusercontent.com/qualvey/ip-monitor/main/uninstall.sh | sudo bash
 ```
 
-> **注意**：卸载脚本默认会**保留**你的 `/root/ip_history.txt` 历史记录文件。
+> **注意**：卸载脚本默认会**保留**你的 `~/ip_history.txt` 历史记录文件。
 > 若要连同历史记录彻底删除，请传入 `--purge` 参数：
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/qualvey/ip-monitor/main/uninstall.sh | sudo bash -s -- --purge
