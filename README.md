@@ -17,6 +17,7 @@
   - **自适应降级 Cron**：在无 Systemd 的精简容器/系统上自动配置系统 Cron 任务。
 - 📝 **开箱即用格式**：日志追加记录为 `[YYYY-MM-DD HH:MM:SS] IP`，格式直观，方便审查与审计。
 - 🔧 **快捷命令行**：内置软链接全局快捷命令 `ipmonitor`，随手即测。
+- 🔄 **每日静默自更新**：脚本在每天记录前会自动检测并拉取 GitHub 仓库最新版本进行安全原子热替换，多台机器无需重复运维，随仓库提交无感升级。
 
 ---
 
@@ -62,7 +63,18 @@ tail -f ~/ip_history.txt
 ipmonitor
 ```
 
-### 3. 查看定时器运行状态与下次触发时间
+### 3. 手动检查更新与查看版本
+```bash
+# 强制检查并立即拉取仓库最新版本
+ipmonitor -u
+# 或
+ipmonitor --update
+
+# 查看当前版本
+ipmonitor -v
+```
+
+### 4. 查看定时器运行状态与下次触发时间
 对于 Systemd 系统：
 ```bash
 # 查看定时器状态
@@ -93,6 +105,13 @@ crontab -l
 LOG_FILE="/var/log/my_ip.log"
 ```
 或者修改 `/etc/systemd/system/ipmonitor.service` 中的 `Environment="LOG_FILE=..."` 并执行 `systemctl daemon-reload`。
+
+### 关闭或开启自动更新
+默认每天运行前会自动检测仓库更新。如果希望锁定版本、关闭自动更新，可在 `/etc/ipmonitor.conf` 中设置：
+```bash
+AUTO_UPDATE="false"
+```
+如需重新开启，改为 `true` 即可。
 
 ### 修改每日执行时间 / 执行频率
 默认在每日 `00:00:00` 运行。如需更改为每 6 小时记录一次，编辑 `/etc/systemd/system/ipmonitor.timer`：
