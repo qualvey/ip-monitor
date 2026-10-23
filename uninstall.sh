@@ -11,7 +11,7 @@ ALIAS_PATH="/usr/local/bin/ipmonitor"
 SYSTEMD_SERVICE="/etc/systemd/system/ipmonitor.service"
 SYSTEMD_TIMER="/etc/systemd/system/ipmonitor.timer"
 CRON_FILE="/etc/cron.d/ipmonitor"
-LOG_FILE="/root/ip_history.txt"
+GLOBAL_CONF="/etc/ipmonitor.conf"
 
 # 颜色输出定义
 RED='\033[0;31m'
@@ -31,9 +31,27 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# 2. 识别目标用户与日志文件路径
+if [ -f "$GLOBAL_CONF" ]; then
+    # shellcheck source=/dev/null
+    source "$GLOBAL_CONF"
+fi
+
+if [ -z "$LOG_FILE" ]; then
+    if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+        TARGET_USER="$SUDO_USER"
+        TARGET_HOME="$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6)"
+        [ -z "$TARGET_HOME" ] && TARGET_HOME="$(eval echo "~$SUDO_USER")"
+    else
+        TARGET_USER="$(id -un)"
+        TARGET_HOME="${HOME:-/root}"
+    fi
+    LOG_FILE="${TARGET_HOME}/ip_history.txt"
+fi
+
 info "开始卸载 IP Monitor..."
 
-# 2. 清理 Systemd 服务与定时器
+# 3. 清理 Systemd 服务与定时器
 if command -v systemctl >/dev/null 2>&1; then
     if systemctl is-active --quiet ipmonitor.timer 2>/dev/null || systemctl is-enabled --quiet ipmonitor.timer 2>/dev/null; then
         info "正在停止并禁用 systemd timer..."
@@ -46,7 +64,7 @@ if command -v systemctl >/dev/null 2>&1; then
     fi
 fi
 
-# 3. 清理 Cron 任务
+# 4. 清理 Cron 任务
 if [ -f "$CRON_FILE" ]; then
     rm -f "$CRON_FILE"
     info "已移除 $CRON_FILE"
@@ -57,11 +75,18 @@ if crontab -l 2>/dev/null | grep -q "ipmonitor.sh"; then
     info "已从当前用户的 crontab 中移除相关任务"
 fi
 
-# 4. 删除二进制文件与快捷别名
-rm -f "$BIN_PATH" "$ALIAS_PATH"
-info "已删除可执行文件 $BIN_PATH"
+if [ -n "${TARGET_USER}" ] && id "${TARGET_USER}" >/dev/null 2>&1; then
+    if crontab -u "${TARGET_USER}" -l 2>/dev/null | grep -q "ipmonitor.sh"; then
+        (crontab -u "${TARGET_USER}" -l 2>/dev/null | grep -v "/usr/local/bin/ipmonitor.sh" || true) | crontab -u "${TARGET_USER}" -
+        info "已从 ${TARGET_USER} 用户的 crontab 中移除相关任务"
+    fi
+fi
 
-# 5. 处理日志文件（支持 --purge 参数彻底删除，默认保留）
+# 5. 删除二进制文件、快捷别名及全局配置文件
+rm -f "$BIN_PATH" "$ALIAS_PATH" "$GLOBAL_CONF"
+info "已删除可执行文件及全局配置文件"
+
+# 6. 处理日志文件（支持 --purge 参数彻底删除，默认保留）
 PURGE=false
 for arg in "$@"; do
     if [ "$arg" == "--purge" ] || [ "$arg" == "-p" ]; then
